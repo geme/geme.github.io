@@ -42,9 +42,6 @@ func application(application: UIApplication, didFinishLaunchingWithOptions launc
 ```
 
 For the configuration of the BITHockeyManager I wrote a extension and I only need to supply a BITHockeyManagerDelegate. 
-
-```
-
 In the same class I can now handle the delegate calls from BITHockeyMangerDelegate.
 
 ``` swift
