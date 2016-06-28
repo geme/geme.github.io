@@ -1,0 +1,181 @@
+---
+layout: post
+title:  "Promises"
+date:   2016-06-28 12:00:00 +0100
+categories: swift
+description: "When I started to get into Promises I watch a lot of talks and read a lot of articles. One line stuck with me and sadly I cannot remember who said it but it goes something like: if you want to understand promises you need to implement one yourself. So instead of implementing the frameworks out there I came up with my own solution. Here I want to show in little steps what I have learnt so far. "
+author: "@gerritmenzel"
+---
+
+When I started to get into Promises I watch a lot of talks and read a lot of articles. One line stuck with me and sadly I cannot remember who said it but it goes something like: if you want to understand promises you need to implement one yourself. So instead of implementing the frameworks out there I came up with my own solution. Here I want to show in little steps what I have learnt so far. 
+Writing this Article I decided to split it in two or maybe more parts because of its complexity.
+
+Getting to it: a Promise holds an operation that will supply a value once it finished. The simplest way to implement a Promise is a variable to store the operation and a method to start the operation. 
+
+``` swift
+// Swift 3
+
+struct Promise<T> {
+
+    typealias CompletionCallback = (T) -> Void
+
+    private let operation: (CompletionCallback) -> Void
+
+    func run(onCompletion: CompletionCallback) {
+        self.operation {
+            onCompletion($0)
+        }
+    }
+}
+```
+
+First of all I use a `typealias` to make it more readable. The `CompletionCallback` is the callback that gets called when our Promise resolves. The Parameter will be the result of the operation. `operation` is the variable which stores the task to perform when the promise gets started. Swift will supply the initializer. Lastly we define the method to `run` the Promise. The Parameter of the `run` method will be the `CompletionCallback` to perform when the promise finishes. The Method is really simple and just calls the operation and inject the resolved value into the `CompletionCallback.`
+
+A simple usage of a Promise could look like this:
+
+``` swift
+// Swift 3
+
+let p = Promise<Int> { completionCallback in
+
+    // Do some async stuff ...
+    // when async stuff finishes call the callback and handover the computed value
+    completionCallback(42)
+}
+
+p.run { num in
+    print(num)
+}
+```
+
+Here we setup the Promise and define what it should perform once it runs. We need to tell the Promise which type our computed value will be. In this case we choose an `Int`. Afterwards we run the task and print the computed value.
+
+The real power of a callback comes when we are able to chain multiple promise together and can handover the resolved value from one promise to the operation of the next. The way to go is to wrap our first Promise into a second one. Which will take the to be computed value T and transform it to another Type U. Let's try to setup a method that could do just that:
+
+
+``` swift
+func then<U>() -> Promise<U> {
+
+}
+```
+
+With this signature we can call the `then` method on a Promise and it will return a new Promise of type `U`.
+
+``` swift
+func then<U>() -> Promise<U> {
+    return Promise<U> { completionCallback in
+
+    }
+}
+```
+
+Our return value should be a new Promise of type `U` so our method should return one. The `then` method will be called from the Promise of type `T` so to get the value `T` we need to unwrap the promise, or as we called it `run` it. 
+
+``` swift
+func then<U>() -> Promise<U> {
+    return Promise<U> { completionCallback in
+        self.run { result in
+
+        }
+    }
+}
+```
+
+Now we have the result of the T-Promise and we somehow have to convert the value of `T` to a type `U`. We can inject a function as a Parameter for our `then` method that can do just that.
+
+``` swift
+func then<U>(_ f: (T) -> U) -> Promise<U> {
+    return Promise<U> { completionCallback in
+        self.run { result in
+
+        }
+    }
+}
+```
+
+Only thing left is to call the function `f` with our `result` and tell the `completionCallback` that we are done here.
+
+``` swift
+// Swift 3
+
+extension Promise {
+
+    func then<U>(_ f: (T) -> U) -> Promise<U> {
+        return Promise<U> { completionCallback in
+            self.run { result in
+                completionCallback(f(result))
+            }
+        }
+    }
+
+}
+```
+
+Let's see how we can use our new method.
+
+
+``` swift
+// Swift 3
+
+func intToString(i: Int) -> String {
+    return "\(i) is a string now"
+}
+
+let p1 = p.then(intToString).run { string in
+    print(string)
+}
+
+```
+
+We are using our Promise `p` from the first example. Notice here that we can reuse our promises and we will get a new computed value from it. A good practice is to not build state inside a Promise, or use state from outside, use dependency injection instead. Back to our example here. I think it is self explanatory. We have a function which will convert a `Int` to a `String` and our promise `p` which will resolve to an `Int` gets chained with our `intToString` function and eventually resolve to a `String`. Another thing to notice is, that the promises only will run when they are triggered. The second promise, let's called it the string-promise, gets triggerd by the run call. But to complete it needs to run the nested int-promise. 
+
+One last case came up when I was playing around with these Promises, what if I already have a function which return a Promise and I want to chain these with my other Promises. Something like this:
+
+``` swift
+// Swift 3
+
+func doSomeMagicStuff(i: Int) -> Promise<String> {
+    return Promise { callback in
+        callback("\(i) some number")
+    }
+}
+
+p1.then(doSomeMagicStuff).run { string in
+    print(string)
+}
+```
+
+In this case we need to extend our Promise again and add a new signature
+
+``` swift
+func then<U>(_ f: (T) -> Promise<U>) -> Promise<U> {
+    return Promise<U> { completionCallback in
+        self.run { result in
+            
+        }
+    }
+}
+```
+
+But this time we have two `Promise<U>`s one we get when we call `f(T)` and one we want to return. Because `f` returns an async operation we cannot return it directly in our mehtod. We do need to first unwrap `result` then we create our second `Promise<U>` by injecting the `result` into `f`. And since `f(result)` returns a Promise we can call `run` on it and use our first `completionCallback` as its parameter. 
+
+``` swift
+// Swift 3
+
+extension Promise {
+
+    func then<U>(_ f: (T) -> Promise<U>) -> Promise<U> {
+        return Promise<U> { completionCallback in
+            self.run { result in
+                f(result).run(onCompletion: completionCallback)
+            }
+        }
+    }
+
+}
+```
+
+This Promise here is not complete, and there will be another article to make it more usable but to understand how a Promise work in swift this is a good introduction.
+Next up I want to tackle error handling and some concrete examples. Coming soon.
+
+
