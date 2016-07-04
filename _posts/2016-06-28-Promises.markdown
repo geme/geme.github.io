@@ -121,7 +121,7 @@ func intToString(i: Int) -> String {
     return "\(i) is a string now"
 }
 
-let p1 = p.then(intToString).run { string in
+p.then(intToString).run { string in
     print(string)
 }
 
@@ -140,7 +140,7 @@ func doSomeMagicStuff(i: Int) -> Promise<String> {
     }
 }
 
-p1.then(doSomeMagicStuff).run { string in
+p.then(doSomeMagicStuff).run { string in
     print(string)
 }
 ```
