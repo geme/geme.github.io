@@ -134,13 +134,14 @@ One last case came up when I was playing around with these Promises, what if I a
 ``` swift
 // Swift 3
 
-func doSomeMagicStuff(i: Int) -> Promise<String> {
+func doSomeMoreAsyncStuff(i: Int) -> Promise<String> {
     return Promise { callback in
+        // async as hell in here
         callback("\(i) some number")
     }
 }
 
-p.then(doSomeMagicStuff).run { string in
+p.then(doSomeMoreAsyncStuff).run { string in
     print(string)
 }
 ```
