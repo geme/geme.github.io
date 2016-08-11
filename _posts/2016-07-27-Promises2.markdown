@@ -1,0 +1,331 @@
+---
+layout: post
+title:  "Promises"
+date:   2016-08-11 12:00:00 +0100
+categories: swift
+description: "In the article I want to show how to use Promises with Error-Cases. A example will show how we can use a Promise and how it can help to keep your code clean."
+author: "@gerritmenzel"
+---
+
+The real magic with promises reveals when we add error handling. Let's recap what we have so far
+
+``` swift
+// Swift 3
+
+struct Promise<T> {
+
+    typealias CompletionCallback = (T) -> Void
+
+    private let operation: (CompletionCallback) -> Void
+
+    func run(onCompletion: CompletionCallback) {
+        self.operation {
+            onCompletion($0)
+        }
+    }
+}
+
+extension Promise {
+
+    func then<U>(_ f: (T) -> U) -> Promise<U> {
+        return Promise<U> { completionCallback in
+            self.run { result in
+                completionCallback(f(result))
+            }
+        }
+    }
+
+    func then<U>(_ f: (T) -> Promise<U>) -> Promise<U> {
+        return Promise<U> { completionCallback in
+            self.run { result in
+                f(result).run(onCompletion: completionCallback)
+            }
+        }
+    }
+}
+```
+
+First off we could use an optional as our T and if it is nil we know that something along the way went wrong. But we would have to check in every our chained promises if the value is nil and pass thorugh the nil value every time.
+On top of the we would not know where and why the value is nil. Let's create an Optional like enum but the None-case can hold a value.
+
+``` swift
+// Swift 3
+
+enum Result<T, E> {
+    case Some(T)
+    case None(E)
+}
+```
+
+You can argue about how we would name the None case. Now it is not empty anymore. But it will not hold a value to consume any further the Promise chain. First I called it Error, but is it really an Error? Maybe I do want to stop the Promise-chain and this must not be an error. So we could call it exception. But even this is not quite right. So in the end I kept None with addtional info.
+
+Our Promise need to have two generic types now. One for the Value `T` and one for the None-case `E`. And our CompletionCallback has now a `Result` Parameter of these types. Adding here a convenience `run` method will let us inject functions for the `Some`- and `None`-Case so we do not have to switch ourself. We will use this method in our example later on.
+
+``` swift
+// Swift 3
+
+struct Promise<T, E> {
+
+    typealias CompletionCallback = (Result<T, E>) -> Void
+
+    let operation: (CompletionCallback) -> Void
+
+    func run(onCompletion: CompletionCallback) {
+        self.operation {
+            onCompletion($0)
+        }
+    }
+
+    func run(doneWithSome some: (T) -> Void, doneWithNome none: (E) -> Void) {
+        run {
+            switch $0 {
+            case let .Some(s):
+                some(s)
+            case let .None(e):
+                none(e)
+            }
+        }
+    }
+}
+```
+
+Next we have to modify the `then` methods as well. Because we have now a `Result` in our `run` callback we first need to switch it. In case of `None` both `then`s handle it the same way: Immediately call the completionCallback and pass the additional info through. This will take care of that we do not need to check if the `Result` has or has not a value in every Promise we build. 
+The `Some`-Cases are almost identical with the opertations before, but we need to wrap the `some` value in the first `then` method in to a `Result`.  
+Adding a third then definition lets us chain `T -> Result` as well. The implementation is no magic. We simply do not need to wrap our `T`.
+
+``` swift
+// Swift 3
+
+extension Promise {
+
+    func then<U>(f: (T) -> U) -> Promise<U, E> {
+        return Promise<U, E> { completionCallback in
+            self.run { result in
+                switch result {
+                    case let .Some(some):
+                        completionCallback(.Some(f(some)))
+                    case let .None(none):
+                        completionCallback(.None(none))
+                }
+            }
+        }
+    }
+
+    func then<U>(f: (T) -> Promise<U, E>) -> Promise<U, E> {
+        return Promise<U, E> { completionCallback in
+            self.run { result in
+                switch result {
+                    case let .Some(some):
+                        f(some).run(onCompletion: completionCallback)
+                    case let .None(none):
+                        completionCallback(.None(none))
+                }
+            }
+        }
+    }
+
+    func then<U>(_ f: (T) -> Result<U, E>) -> Promise<U, E> {
+        return Promise<U, E> { completionCallback in
+            self.run { result in
+                switch result {
+                case let .Some(some):
+                    completionCallback(f(some))
+                case let .None(none):
+                    completionCallback(.None(none))
+                }
+            }
+        }
+    }
+}
+```
+
+Now that we have our Promise ready lets see it in action. In our example we want to connect to the ItunesStore get some Information, and print the Artist Name.
+First off we define a `Error` Enum this will be the value of our `None`-Case. 
+
+``` swift
+// Swift 3
+
+enum Error: String {
+    case NoUrl
+    case RequestFailed
+    case parsingJsonFailed
+    case dictionaryWrongFormat
+    case invalidJson
+    case noResultFound
+}
+```
+
+Next up we need a `Promise` which will create a session runs the dataTask and will supply the `Data`. It is important that the `Promise` will call the callback in any possible cases. A leak here will lead to unfinished `Promise`s and happy debug times :) So we guard let our `url` so we do not have to force unwrap it. If it fails we call the `callback` with the `None`-Case and supply an error `NoUrl`. With this url wir create the `request` and after that we create the `session`.
+Setting up the `dataTask` and then calling `resume`. `resume` acts like our `run` method which will start the task. In the `dataTask` closure we `if let` the `data` and check if `error` is `nil` so we can call our `callback` with the `Some`-Case and supply the `data`. If that fails we call with the `None`-Case and supply a different `Error`-Case than above. That simply wraps a network request in a `Promise` we can use mulitple times. Notice we did not call `run` on this `Promise` yet so nothing started just yet.
+
+``` swift
+// Swift 3
+
+func iTunesLookUp(id: String) -> Promise<Data, Error> {
+    return Promise<Data, Error> { callback in
+        guard let url = URL(string: "https://itunes.apple.com/lookup?id=\(id)") else {
+            callback(.None(.NoUrl))
+            return
+        }
+
+        let request = URLRequest(url: url)
+        let session = URLSession.shared()
+
+        session.dataTask(with: request) { (data, response, error) in
+
+            if let data = data
+                where error == nil {
+                callback(.Some(data))
+            } else {
+                callback(.None(.RequestFailed))
+            }
+            
+            }.resume()
+    }
+} 
+```
+
+`Data` is not the type we were looking for so we need to convert it in a more readable type like a `Dictionary`. Lets just create a function which can do that.
+We do not need to `return` a `Promise` because no async action is done here. We could use a `Optional` return type but than we would be missing an error message if there is any. So lets use the `Result` in this place. Return a `Dictionary` if successful and an `Error` if not. Nothing fancy done in here, just serialize the `data` if possible and check if we got an `Dicitonary`.
+
+``` swift
+// Swift 3
+
+func toDictionary(from data: Data) -> Result<[String: AnyObject], Error> {
+    do {
+        if let dict = try JSONSerialization.jsonObject(with: data, options: .mutableContainers) as? [String: AnyObject] {
+            return .Some(dict)
+        } else {
+            return .None(.dictionaryWrongFormat)
+        }
+    } catch {
+        return .None(.parsingJsonFailed)
+    }
+}
+```
+
+A `Dictionary` is not quite the type we expected either so lets create a model for our network request. Or actually two models. The Apple API we are using will respond with two types of Objects. The root Object which will hold an array of `Result` Objects. For both objects we create a model and create a initializer to `init` the model with a json. The initializer is failable, so if any unexcpected value is present in any of the objects the model will be nil. This will prevent our app from crashing if at any time the API will change. A lot of boilerplate code but it is worth it, even in smaller projects.
+
+``` swift
+// Swift 3
+
+struct ItunesLookupResponseModel {
+    let resultCount: Int
+    let results: [ItunesLookupResultResponseModel]
+
+    init?(dict: [String: AnyObject]) {
+        guard let
+            resultCount = dict["resultCount"] as? Int,
+            results = dict["results"] as? [[String: AnyObject]] else {
+                return nil
+        }
+
+        self.results = results.flatMap {
+            return ItunesLookupResultResponseModel(dict: $0)
+        }
+        self.resultCount = resultCount
+    }
+}
+
+struct ItunesLookupResultResponseModel {
+    let amgArtistId: Int
+    let artistId: Int
+    let artistLinkUrl: String
+    let artistName: String
+    let artistType: String
+    let primaryGenreId: Int
+    let primaryGenreName: String
+    let wrapperType: String
+
+    init?(dict: [String: AnyObject]) {
+        guard let
+            amgArtistId = dict["amgArtistId"] as? Int,
+            artistId = dict["artistId"] as? Int,
+            artistLinkUrl = dict["artistLinkUrl"] as? String,
+            artistName = dict["artistName"] as? String,
+            artistType = dict["artistType"] as? String,
+            primaryGenreId = dict["primaryGenreId"] as? Int,
+            primaryGenreName = dict["primaryGenreName"] as? String,
+            wrapperType = dict["wrapperType"] as? String else {
+            return nil
+        }
+
+        self.amgArtistId = amgArtistId
+        self.artistId = artistId
+        self.artistLinkUrl = artistLinkUrl
+        self.artistName = artistName
+        self.artistType = artistType
+        self.primaryGenreId = primaryGenreId
+        self.primaryGenreName = primaryGenreName
+        self.wrapperType = wrapperType
+    }
+}
+```
+
+So lets create a `function` which convert our `Dictionary` into a `model`.
+
+``` swift
+// Swift 3
+
+func toModel(from dict: [String: AnyObject]) -> Result<ItunesLookupResponseModel, Error>{
+    if let model = ItunesLookupResponseModel(dict: dict) {
+        return .Some(model)
+    } else {
+        return .None(.invalidJson)
+    }
+}
+```
+
+Just to get our story going we need just one `Result` model so a `function` to filter an arbitrary result from our array will do the trick. 
+
+``` swift
+// Swift 3
+
+func filterModels(model: ItunesLookupResponseModel) -> Result<ItunesLookupResultResponseModel, Error> {
+
+    let results = model.results.filter {
+        return $0.primaryGenreName == "Rock"
+    }
+
+    if let result = results.first {
+        return .Some(result)
+    }
+
+    return .None(.noResultFound)
+}
+
+```
+
+We are almost there to keep it clean we create our `success` and `error` functions which only prints out our `result`.
+
+``` swift
+// Swift 3
+
+func printName(model: ItunesLookupResultResponseModel) {
+    print(model.artistName)
+}
+
+func error(error: Error) {
+    print(error)
+}
+```
+
+So now what? We setup everything we need. Lets create the operation and and chain everything together:
+
+``` swift
+// Swift 3
+
+iTunesLookUp(id: "909253")
+    .then(toDictionary)
+    .then(toModel)
+    .then(filterModels)
+    .run(some: printName, none: error)
+
+```
+
+The end result is not so suprising, but what it does with your code is! No nested scopes and you can read what every operation is doing.
+One could ask: Why would we split everything into single functions? [Single Responsibility Principle](https://realm.io/news/donn-felker-solid-part-1/) thats why! And because it is highly testable and more readable for new teammembers (or oneself). You can easy imagine that is just as easy to make another async request to an API with the result from this promise and chain it even more.
+
+Where do we go from here? This is not a complete library/framework at all, but we do use it in some of our customer projects and its doing well. It is slim and helps to clean our code. The mentioned frameworks form part1 are more complete and will give you more options, but this was not the intend of this article. 
+
+In my next article I want to cover how to use Promises and ViewController to create simple App navigation.
