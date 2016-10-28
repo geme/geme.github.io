@@ -10,6 +10,7 @@ author: "@gerritmenzel"
 Navigate to `Target -> Build Phases` on the top left is a plus sign to add a new Build Phase "New Run Script Phase".
 
 Here you can enter the custom script to run. If you want to access the input or output files you can define use:
+
 - `${SCRIPT_INPUT_FILE_0}`
 - `${SCRIPT_INPUT_FILE_1}`
 - `${SCRIPT_INPUT_FILE_n}` 
