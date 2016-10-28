@@ -9,7 +9,7 @@ author: "@gerritmenzel"
 
 To navigate between ViewControllers can be a bit tricky and should be right when the projects starts. The problem is that there are to many ways you can handle navigation and there is no real best practice. So I started experimenting what could be a clean approach. What I came up with is a web-like navigation with urls.
 
-You can get the full source code from my ![github page](https://github.com/geme/url-navigation), here I just want to point out the critical parts and how to use it.
+You can get the full source code from my [github page](https://github.com/geme/url-navigation), here I just want to point out the critical parts and how to use it.
 
 One idea of mine was it would be greate if I could define in the URL if we want to pop to the rootviewcontroller and then navigate to our desired viewcontroller or just push the viewcontroller onto the stack.
 A great way would be the file scheme syntax:
@@ -60,5 +60,5 @@ If you dont want deeplinking for all or specific section of your app you can che
 
 If you dont want to set a viewModel in your ViewController just use the `Protocol` `UrlBindable`, this requires you to implement `bind(url: URL)` yourself and our done.
 
-For more information See my ![project on github](https://github.com/geme/url-navigation)
+For more information See my [project on github](https://github.com/geme/url-navigation)
 
