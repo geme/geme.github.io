@@ -62,3 +62,20 @@ If you dont want to set a viewModel in your ViewController just use the `Protoco
 
 For more information See my [project on github](https://github.com/geme/url-navigation)
 
+Some thoughts about pros and cons
+Pro:
+
+- the ViewController does not need to know about other ViewControllers and their ViewModels
+
+Con:
+
+- We do not have any type saftey for our viewModels. 
+- Really large viewModels will result in a really long url.
+
+My way of handling the cons would be to not pass around the values in the url, but tell the next ViewController where to find the information it needs. In my next post I will show a way to abstract the navigation away from the ViewControllers to a dedicated class for routing.
+
+
+
+
+
+
