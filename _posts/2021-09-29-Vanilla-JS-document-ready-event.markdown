@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Vanilla JS document ready event"
+title:  "vanilla.js document ready event"
 date:   2021-09-29 17:47:00 +0100
 categories: javascript, js
 description: "I often find myself creating simple html webpages for little things. I dont want to use massive javascript libraries, but I sometimes need some functionality from such a library."
