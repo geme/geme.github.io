@@ -16,10 +16,12 @@ author: "@gerritmenzel"
   }
 </style>
 
-<form action="#">
-  <input type="text" onchange="highlightNumbers()" placeholder="Lottozahlen">
-</form>
 <table>
+    <tr><th colspan="6">
+      <form action="#">
+        <input type="text" onchange="highlightNumbers()" placeholder="Lottozahlen">
+      </form>
+    </th></tr>
     <tr><td>2</td><td>10</td><td>11</td><td>21</td><td>38</td><td>40</td></tr>
     <tr><td>6</td><td>17</td><td>19</td><td>25</td><td>27</td><td>41</td></tr>
     <tr><td>1</td><td>5</td><td>13</td><td>27</td><td>33</td><td>37</td></tr>
