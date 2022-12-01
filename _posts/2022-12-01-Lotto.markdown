@@ -17,7 +17,7 @@ author: "@gerritmenzel"
 </style>
 
 <form action="#">
-  <input type="text" onchange="highlightNumbers()">
+  <input type="text" onchange="highlightNumbers()" placeholder="Lottozahlen">
 </form>
 <table>
     <tr><td>2</td><td>10</td><td>11</td><td>21</td><td>38</td><td>40</td></tr>
