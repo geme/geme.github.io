@@ -15,24 +15,7 @@ author: "@gerritmenzel"
     background-color: green;
   }
 </style>
-<script>
-  function highlightNumbers() {
-    let numbers = document.querySelector("input").value.match(/\d+/g);
-    document.querySelectorAll("td").forEach( (elem) => {
-      if (numbers.indexOf(elem.innerHTML) >= 0 ) {
-        elem.classList.add("highlight")
-      } else {
-        elem.classList.remove("highlight")
-      }
-    });
-  }
 
-  function ready() {
-    document.querySelector("form").addEventListener("submit", (e) => {
-     e.preventDefault(); 
-    });
-  }
-</script>
 <form>
   <input type="text" onchange="highlightNumbers()">
 </form>
@@ -50,4 +33,21 @@ author: "@gerritmenzel"
     <tr><td>4</td><td>10</td><td>26</td><td>29</td><td>31</td><td>46</td></tr>
     <tr><td>3</td><td>4</td><td>8</td><td>29</td><td>45</td><td>46</td></tr>
 </table>
+
+<script>
+  function highlightNumbers() {
+    let numbers = document.querySelector("input").value.match(/\d+/g);
+    document.querySelectorAll("td").forEach( (elem) => {
+      if (numbers.indexOf(elem.innerHTML) >= 0 ) {
+        elem.classList.add("highlight")
+      } else {
+        elem.classList.remove("highlight")
+      }
+    });
+  }
+
+  document.querySelector("form").addEventListener("submit", (e) => {
+   e.preventDefault(); 
+  });
+</script>
 
