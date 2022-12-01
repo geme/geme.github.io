@@ -8,9 +8,7 @@ author: "@gerritmenzel"
 ---
 
 <style>
-  *{font-family:Arial; line-height: 25px; margin:0;}
-  .wrap{width: 180px;margin:0 auto;}
-  .wrap > * { margin-bottom: 15px; }
+  form, table { margin-bottom: 15px; }
   h1 { margin-top: 15px }
   input { width: 100% }
   .highlight {
@@ -35,10 +33,6 @@ author: "@gerritmenzel"
     });
   }
 </script>
-
-<div class="wrap">
-<h1>Lotto</h1>
-
 <form>
   <input type="text" onchange="highlightNumbers()">
 </form>
@@ -56,5 +50,4 @@ author: "@gerritmenzel"
     <tr><td>4</td><td>10</td><td>26</td><td>29</td><td>31</td><td>46</td></tr>
     <tr><td>3</td><td>4</td><td>8</td><td>29</td><td>45</td><td>46</td></tr>
 </table>
-</div>
 
