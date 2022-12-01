@@ -16,7 +16,7 @@ author: "@gerritmenzel"
   }
 </style>
 
-<form>
+<form action="#">
   <input type="text" onchange="highlightNumbers()">
 </form>
 <table>
